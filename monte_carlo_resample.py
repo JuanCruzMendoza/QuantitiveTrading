@@ -1,5 +1,6 @@
 #%%
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
@@ -13,7 +14,7 @@ data = pd.read_csv(
     usecols=['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
 )
 
-def monte_carlo_resample_func(data, strategy, n_simulations=10000, initial_balance=10000, commision=0.002, trading_days=252, risk_free_rate=0.04):
+def monte_carlo_resample_func(data, strategy, n_simulations=100, initial_balance=10000, commision=0.002, trading_days=252, risk_free_rate=0.04):
     bt = Backtest(data, strategy, cash=initial_balance, commission=commision)
     results = bt.run()
 
@@ -23,6 +24,7 @@ def monte_carlo_resample_func(data, strategy, n_simulations=10000, initial_balan
     # Monte Carlo simulation: resample trades with replacement and calculate metrics
     n_iter = n_simulations  # number of Monte Carlo iterations
     metrics_list = []
+    equity_curves= []
 
     for i in range(n_iter):
         # Sample with replacement from the trades dataframe
@@ -38,6 +40,8 @@ def monte_carlo_resample_func(data, strategy, n_simulations=10000, initial_balan
         # Starting with the same initial capital used in the backtest.
         initial_capital = 10000
         equity_curve = initial_capital + sampled_trades['PnL'].cumsum()
+        equity_curves.append(equity_curve.values)
+
         # Calculate drawdown
         running_max = np.maximum.accumulate(equity_curve)
         drawdown = (running_max - equity_curve) / running_max
@@ -67,6 +71,32 @@ def monte_carlo_resample_func(data, strategy, n_simulations=10000, initial_balan
     # Save the simulation metrics into a DataFrame
     metrics_df = pd.DataFrame(metrics_list)
 
+    # General metrics of all simulations
     print(metrics_df.describe())
+
+    # We plot based on confidence interval of 95%
+    equity_curves_df = pd.DataFrame(equity_curves).T
+
+    average_equity = equity_curves_df.mean(axis=1)
+    confidence_interval = equity_curves_df.quantile([0.025, 0.975], axis=1)
+
+    # Plotting the equity curves
+    plt.figure(figsize=(12, 6))
+
+    for i in range(n_simulations):
+        plt.plot(equity_curves_df.iloc[:, i], color='gray', alpha=0.3)
+
+    # Plot average equity curve
+    plt.plot(average_equity, color='blue', label='Average Equity Curve', linewidth=2)
+
+    # Plot confidence intervals
+    plt.fill_between(average_equity.index, confidence_interval.loc[0.025], confidence_interval.loc[0.975],
+                    color='blue', alpha=0.2, label='95% Confidence Interval')
+
+    plt.title('Monte Carlo Simulations of Equity Curves')
+    plt.xlabel('Trade Number')
+    plt.ylabel('Equity ($)')
+    plt.legend()
+    plt.show()
 
 monte_carlo_resample_func(data, EWMACrossover)
