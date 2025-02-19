@@ -7,7 +7,7 @@ import os
 
 class BacktestInOutSample:
     def __init__(self, data, strategy, splitRatio=0.7, cash=10000, commission=0.001):
-        self.daa = data
+        self.data = data
         self.strategy = strategy
         self.splitRatio = splitRatio
         self.cash = cash
@@ -86,6 +86,7 @@ class BacktestInOutSample:
                 ### LLAMO AL OPTIMIZADOR ###
                 # Le paso la estrategia y la data
                 pass
+            # Le cargo a la estrategia los parametros optimizados
             bt = Backtest(dataToUse, self.strategy, cash=self.cash, commission=self.commission)
             results = bt.run()
             self.saveResults(results, True if i == 0 else False)
