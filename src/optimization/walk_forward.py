@@ -2,13 +2,10 @@ import pandas as pd
 import numpy as np
 from backtesting import Backtest
 
-from src.strategies.ewma_crossover import EWMACrossover  # Import your strategy
-
 def walk_forward_optimization(
     csv_path,
     strategy,
     initial_cash=10_000,
-    commission=0.0,
     n_periods=5,
     test_pct=0.2,
     output_csv='wfo_results.csv',
@@ -22,7 +19,7 @@ def walk_forward_optimization(
     strategy: backtesting.py strategy sub class.
     test_pct: percentage of the out of sample data in each period.
     opt_kwargs (dict): parameters for the optimization, ranges of each parameter.
-    bt_kwargs (dict): parameters for the backtest.
+    bt_kwargs (dict): parameters for the backtest (comission, spread, margin)
     
     """
     df = pd.read_csv(csv_path, parse_dates=['Date'], index_col='Date')
@@ -47,12 +44,11 @@ def walk_forward_optimization(
             data=train_df,
             strategy=strategy,
             cash=initial_cash,
-            commission=commission,
             **(bt_kwargs or {})
         )
-        stats_train = bt_train.optimize(**(opt_kwargs or {}))
-        #stats_train = bt_train.optimize(fast_period=[5, 10, 15], slow_period=[10, 20, 40],
-        #                       constraint=lambda p: p.fast_period < p.slow_period)
+        stats_train = bt_train.optimize(**(opt_kwargs or {}), 
+                                        method="grid",
+                                        max_tries=1000) 
         
         # Backtest on out-of-sample using best params
         best_params = stats_train['_strategy']._params
@@ -60,7 +56,6 @@ def walk_forward_optimization(
             test_df,
             strategy=strategy,
             cash=initial_cash,
-            commission=commission,
             **(bt_kwargs or {})
         )
 
@@ -72,24 +67,16 @@ def walk_forward_optimization(
             'period': i+1,
             'start': segment.index[-1],
             'end': segment.index[0],
-            'Return': stats_test['Return [%]'],
+            'Return [%]': stats_test['Return [%]'],
             'Sharpe': stats_test['Sharpe Ratio'],
-            'MaxDrawdown': stats_test['Max. Drawdown [%]'],
-            'Trades': stats_test['# Trades'],
-            'WinRate': stats_test['Win Rate [%]'],
+            'MaxDrawdown [%]': stats_test['Max. Drawdown [%]'],
+            '# Trades': stats_test['# Trades'],
+            'WinRate [%]': stats_test['Win Rate [%]'],
             'Best Params': best_params
         }
         results.append(res)
 
-    pd.DataFrame(results).to_csv(output_csv, index=False)
+    pd.DataFrame(results).to_csv(output_csv, mode="w", index=False)
     print(f"Saved walk-forward results to {output_csv}")
     return pd.DataFrame(results)
 
-walk_forward_optimization(csv_path='data/SPY_1D.csv',
-                          strategy=EWMACrossover,
-                          initial_cash=10_000,
-                          commission=0.001,
-                          n_periods=5,
-                          test_pct=0.2,
-                          output_csv='src/optimization/results/wfo_results.csv',
-                          opt_kwargs= {'fast_period': [10, 20], 'slow_period': [50, 100]})

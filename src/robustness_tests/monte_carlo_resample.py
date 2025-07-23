@@ -1,23 +1,26 @@
-#%%
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from backtesting import Backtest, Strategy
-from backtesting.lib import crossover
-from src.strategies.ewma_crossover import EWMACrossover
+from backtesting import Backtest
 
-# Data de muestra
-data = pd.read_csv(
-    "data/SPY_1D.csv",
-    parse_dates=['Date'],
-    index_col='Date',
-    usecols=['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
-)
+def monte_carlo_resample(csv_path, strategy, n_simulations=100, initial_capital=100000, bt_kwargs=None, 
+                              log_filename= "monte_carlo_resample.log", plot_file="monte_carlo_resample.png", trading_days=252, risk_free_rate=0.04):
 
-def monte_carlo_resample_func(data, strategy, n_simulations=100, initial_capital=10000, commision=0.002, trading_days=252, risk_free_rate=0.04):
+    """
+    Perform Monte Carlo resampling on backtest trades with replacement to analyze strategy robustness.
+    Then, it plots the equity curves of the simulations along with confidence intervals.
+
+    Parameters:
+    - csv_path: Path to the CSV file containing historical data.
+    - strategy: The trading strategy to be backtested (in backtesting.py format).
+    - n_simulations: Number of Monte Carlo simulations to run.
+    - bt_kwargs: Additional keyword arguments for the Backtest class (commission, margin, etc.)
+    """
+
+    data = pd.read_csv(csv_path, parse_dates=['Date'], index_col='Date')
 
     ### Initial backtest
-    bt = Backtest(data, strategy, cash=initial_capital, commission=commision)
+    bt = Backtest(data, strategy, cash=initial_capital, **(bt_kwargs or {}))
     results = bt.run()
 
     # Get trades from the backtest results (assumes a 'PnL' column exists)
@@ -65,9 +68,9 @@ def monte_carlo_resample_func(data, strategy, n_simulations=100, initial_capital
     # Save the simulation metrics into a DataFrame
     metrics_df = pd.DataFrame(metrics_list)
 
-    # General metrics of all simulations
-    print(metrics_df.describe())
-
+    with open(log_filename, 'w') as log_file:
+        log_file.write("Monte Carlo Resampling Results:\n")
+        log_file.write(metrics_df.describe(percentiles=[0.05, 0.25, 0.5, 0.75, 0.95]).round(2).to_string())
 
     ### Plotting
 
@@ -89,11 +92,16 @@ def monte_carlo_resample_func(data, strategy, n_simulations=100, initial_capital
     # Plot confidence intervals
     plt.fill_between(average_equity.index, confidence_interval.loc[0.025], confidence_interval.loc[0.975],
                     color='blue', alpha=0.2, label='95% Confidence Interval')
+    
+    # Plot line for initial capital
+    plt.axhline(y=initial_capital, color='red', linestyle='--', label='Initial Capital')
 
     plt.title('Monte Carlo Simulations of Equity Curves')
     plt.xlabel('Trade Number')
     plt.ylabel('Equity ($)')
     plt.legend()
+    plt.grid()
     plt.show()
 
-monte_carlo_resample_func(data, EWMACrossover)
+    # Save the plot
+    plt.savefig(plot_file, dpi=300)
