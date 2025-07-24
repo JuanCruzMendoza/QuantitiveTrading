@@ -11,6 +11,8 @@ from src.robustness_tests.monte_carlo_data_permutation import monte_carlo_data_p
 
 bt_params = {'cash':100000, 'commission': 0.01, 'margin': 1.0, 'spread': 0.002}
 
+strategy = VolTargetEWMACrossover
+
 monte_carlo_data_permutation(
     csv_path='data/SPY_1D.csv',
     strategy_used=VolTargetEWMACrossover,

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from backtesting import Backtest, Strategy
+from backtesting import Strategy
 from backtesting.lib import crossover
 
 """
@@ -35,7 +35,10 @@ class EWMACrossover(Strategy):
 
 class VolTargetEWMACrossover(Strategy):
     # An EWMA crossover strategy with volatility targeting (meaning, it changes the position size based on volatility)
+    # It buys when the fast EWMA crosses above the slow EWMA, and sells when the slow EWMA crosses above the medium EWMA.
+
     fast_period = 10
+    medium_period = 20
     slow_period = 50
     vol_window = 20         # days to estimate vol
     annual_target = 0.15    # 15% annualized volatility target
@@ -45,6 +48,8 @@ class VolTargetEWMACrossover(Strategy):
         # EWMAs
         self.fast_ewma = self.I(lambda x: x.ewm(span=self.fast_period, adjust=False).mean(), close)
         self.slow_ewma = self.I(lambda x: x.ewm(span=self.slow_period, adjust=False).mean(), close)
+        self.medium_ewma = self.I(lambda x: x.ewm(span=self.medium_period, adjust=False).mean(), close)
+
         # Calculate daily return and rolling volatility
         returns = np.log(close / close.shift(1))
         self.vol = self.I(lambda x: x.rolling(self.vol_window).std(), returns)
@@ -61,11 +66,11 @@ class VolTargetEWMACrossover(Strategy):
         size_frac = self.annual_target / annual_vol
         size_frac = min(size_frac, 0.999)  # cap at 100% of equity
 
-        if crossover(self.fast_ewma, self.slow_ewma):
+        if crossover(self.medium_ewma, self.slow_ewma):
             if not self.position:
 
                 self.buy(size=size_frac)
 
-        elif crossover(self.slow_ewma, self.fast_ewma):
+        elif crossover(self.medium_ewma, self.fast_ewma):
             if self.position:
                 self.position.close()

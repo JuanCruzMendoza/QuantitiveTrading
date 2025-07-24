@@ -6,12 +6,13 @@ sys.path.append(str(Path(__file__).absolute().parent.parent.parent.parent))
 
 # Or we can execute the script from the root directory with -m option
 
-from src.strategies.ewma_crossover.ewma_crossover import EWMACrossover, VolTargetEWMACrossover
+from src.strategies.ewma_crossover.ewma_crossover import VolTargetEWMACrossover
 from src.optimization.walk_forward import walk_forward_optimization
 
 opt_params = {'fast_period': range(10, 50, 5), 
-              'slow_period': range(30, 100, 10), 
-              "constraint": lambda p: p.fast_period < p.slow_period}
+               "medium_period": range(15, 100, 5),
+              'slow_period': range(30, 200, 10),
+              "constraint": lambda p: p.fast_period < p.medium_period and p.medium_period < p.slow_period}
 
 bt_params = {'commission': 0.01, 'margin': 1.0, 'spread': 0.002}
 

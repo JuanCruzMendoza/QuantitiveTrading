@@ -1,7 +1,7 @@
 import time
 import pandas as pd
 from ib_insync import *
-from ewma_ex_signal import generate_ewma_signal
+from IBKR.ewma_ex_signal import generate_ewma_signal
 
 
 # Connect to IBKR
